@@ -10,6 +10,10 @@ import {
 } from "react-native";
 import { apiBaseUrl } from "../../config/urls";
 import { useNavigation } from "@react-navigation/native";
+import AppButton from "../../Components/Button";
+import { jwtDecode } from "jwt-decode";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Toast from "react-native-toast-message";
 
 const BookTicket = ({ route }) => {
   const { busId } = route.params;
@@ -53,25 +57,54 @@ const BookTicket = ({ route }) => {
     }
   };
 
-  const handleGenderSelection = (gender) => {
+  const handleGenderSelection = async (gender) => {
+    console.log("Gender", gender);
+    console.log("Seats", selectedSeats);
+    // Check gender compatibility
+    for (let seat of selectedSeats) {
+      console.log("Seat", seat);
+      const neighborGender = seat?.neighborGender;
+      console.log(" N Gender", neighborGender);
+      if (neighborGender) {
+        if (neighborGender !== gender) {
+          Toast.show({
+            type: "error",
+            text1: `Seat ${seat.seatNumber.split("-")[1]}: Must select ${
+              neighborGender === "M" ? "Male" : "Female"
+            }`,
+          });
+          return; // Stop further execution
+        }
+      }
+    }
+
+    const token = await AsyncStorage.getItem("token");
+    if (!token) return;
+
+    const decoded = jwtDecode(token);
+    const userId = decoded?.sub;
+    const userName = decoded?.name;
+    const email = decoded?.email;
+
     const updatedSeats = selectedSeats.map((seat) => ({
       ...seat,
       gender: gender,
     }));
+
     setSelectedSeats(updatedSeats);
     setGenderModalVisible(false);
 
-    const totalAmount = selectedSeats?.length * selectedBus?.fare.actualPrice;
+    const totalAmount = selectedSeats.length * selectedBus.fare.actualPrice;
+
     navigation.navigate("PaymentScreen", {
       busId,
-      userId: "67de83adfd817d7dc56a0a04",
+      userId: userId,
+      userName,
+      email,
       amount: totalAmount,
       adminId: selectedBus?.busDetails?.adminId,
-      selectedSeats: selectedSeats,
+      selectedSeats: updatedSeats, // small fix here too
     });
-
-    // You can handle submission here
-    console.log("Selected Seats with Gender: ", updatedSeats);
   };
 
   const renderSeat = ({ item }) => {
@@ -95,7 +128,7 @@ const BookTicket = ({ route }) => {
         disabled={isBooked}
       >
         <Text style={styles.seatText}>{item.seatNumber.split("-")[1]}</Text>
-        {isBooked && <Text style={styles.gender}>{item.gender}</Text>}
+        {isBooked && <Text style={styles.gender}>{item?.gender}</Text>}
       </TouchableOpacity>
     );
   };
@@ -130,13 +163,12 @@ const BookTicket = ({ route }) => {
             Selected Seats:{" "}
             {selectedSeats.map((s) => s.seatNumber.split("-")[1]).join(", ")}
           </Text>
-
-          <TouchableOpacity
-            style={styles.confirmButton}
+          <AppButton
+            variant="secondary"
+            text="Confirm Your Bookings"
             onPress={() => setGenderModalVisible(true)}
-          >
-            <Text style={styles.confirmButtonText}>Confirm Your Bookings</Text>
-          </TouchableOpacity>
+          />
+          <View style={{ marginVertical: 8 }} />
         </View>
       )}
 
@@ -150,20 +182,19 @@ const BookTicket = ({ route }) => {
         <View style={styles.modalBackground}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Select Gender</Text>
-
-            <Pressable
-              style={[styles.genderButton, { backgroundColor: "#4a90e2" }]}
+            <AppButton
+              style={{ width: 150 }}
+              text="Male"
+              variant="secondary"
               onPress={() => handleGenderSelection("M")}
-            >
-              <Text style={styles.genderButtonText}>Male</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.genderButton, { backgroundColor: "#e94b86" }]}
+            />
+            <View style={{ marginVertical: 8 }} />
+            <AppButton
+              style={{ width: 150 }}
+              text="Female"
+              variant="secondary"
               onPress={() => handleGenderSelection("F")}
-            >
-              <Text style={styles.genderButtonText}>Female</Text>
-            </Pressable>
+            />
 
             <TouchableOpacity
               onPress={() => setGenderModalVisible(false)}
@@ -183,109 +214,108 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 60, // Increased spacing from the top
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#2C3E50',
-    textAlign: 'center',
+    fontWeight: "bold",
+    color: "#2C3E50",
+    textAlign: "center",
     marginBottom: 16,
   },
   subtitle: {
     fontSize: 18,
-    color: '#7F8C8D',
-    textAlign: 'center',
+    color: "#7F8C8D",
+    textAlign: "center",
     marginBottom: 32,
   },
   seatLayout: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 40,
   },
   seat: {
     width: 60,
     height: 60,
     margin: 10, // Slightly more space between seats
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 12,
-    backgroundColor: '#3498DB', // Example color for available seat
+    backgroundColor: "#3498DB", // Example color for available seat
   },
   seatText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: "#FFFFFF",
+    fontWeight: "bold",
     fontSize: 16,
   },
   gender: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 12,
   },
   selectionInfo: {
     marginTop: 40,
-    alignItems: 'center',
+    alignItems: "center",
   },
   selectionText: {
     fontSize: 18,
-    color: '#34495E',
+    color: "#34495E",
     marginBottom: 20,
   },
   confirmButton: {
-    backgroundColor: '#1ABC9C',
+    backgroundColor: "#1ABC9C",
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 4,
   },
   confirmButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: "#FFFFFF",
+    fontWeight: "bold",
     fontSize: 16,
   },
   modalBackground: {
     flex: 1,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     marginHorizontal: 32,
     padding: 24,
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   modalTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#2C3E50',
+    fontWeight: "bold",
+    color: "#2C3E50",
     marginBottom: 24,
   },
   genderButton: {
-    width: '80%',
+    width: "80%",
     paddingVertical: 14,
     borderRadius: 10,
     marginVertical: 12,
-    alignItems: 'center',
-    backgroundColor: '#2980B9',
+    alignItems: "center",
+    backgroundColor: "#2980B9",
   },
   genderButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   cancelButton: {
     marginTop: 20,
   },
   cancelButtonText: {
-    color: '#7F8C8D',
+    color: "#7F8C8D",
     fontSize: 14,
   },
 });
-
 
 export default BookTicket;

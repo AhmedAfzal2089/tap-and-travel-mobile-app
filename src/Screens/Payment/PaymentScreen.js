@@ -1,21 +1,64 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import Payment from "../../Components/Payment";
+import { MaterialIcons, FontAwesome5 } from "@expo/vector-icons"; // or "react-native-vector-icons" if not Expo
 
 const PaymentScreen = ({ route }) => {
-  const { amount, busId, userId, adminId, selectedSeats } = route.params;
+  const { amount, busId, userId, userName, email, adminId, selectedSeats } =
+    route.params;
+
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Billing Details</Text>
-        <Text>Name: John Doe</Text>
-        <Text>Email: johndoe@example.com</Text>
-        <Text>Total Amount: $50.00</Text>
+      <View style={styles.cardContainer}>
+        <View style={styles.card}>
+          <Text style={styles.title}>Billing Details</Text>
+
+          <View style={styles.detailRow}>
+            <MaterialIcons
+              name="person"
+              size={20}
+              color="#ffffff"
+              style={styles.icon}
+            />
+            <Text style={styles.detail}>
+              <Text style={styles.label}>Name: </Text>
+              {userName}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <MaterialIcons
+              name="email"
+              size={20}
+              color="#ffffff"
+              style={styles.icon}
+            />
+            <Text style={styles.detail}>
+              <Text style={styles.label}>Email: </Text>
+              {email}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <FontAwesome5
+              name="money-bill-wave"
+              size={20}
+              color="#ffffff"
+              style={styles.icon}
+            />
+            <Text style={styles.detail}>
+              <Text style={styles.label}>Total Amount: </Text>Rs. {amount}
+            </Text>
+          </View>
+        </View>
       </View>
+
       <Payment
+        style={styles.button}
         amount={amount}
         busId={busId}
         userId={userId}
+        email={email}
         adminId={adminId}
         selectedSeats={selectedSeats}
       />
@@ -28,21 +71,55 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     justifyContent: "center",
-    backgroundColor: "#f8f9fa",
+    alignItems: "center",
+  },
+  cardContainer: {
+    width: "90%",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
   },
   card: {
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 10,
+    backgroundColor: "#3a3a85",
+    padding: 25,
+    borderRadius: 16,
     shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+    width: "100%",
   },
   title: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 10,
+    marginBottom: 20,
+    color: "#ffffff",
+    textAlign: "center",
+  },
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  icon: {
+    marginRight: 10,
+  },
+  detail: {
+    fontSize: 16,
+    color: "#e0e0ff",
+  },
+  label: {
+    fontWeight: "bold",
+    color: "#ffffff",
+  },
+  button: {
+    paddingVertical: 14,
+    paddingHorizontal: 22,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 20,
+    backgroundColor: "#5d5de6",
+    elevation: 4,
   },
 });
 

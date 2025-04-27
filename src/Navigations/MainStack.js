@@ -9,6 +9,7 @@ export default function (Stack) {
       <Stack.Screen name="MainTabs" component={TabRoutes} />
       <Stack.Screen name="BookTicket" component={BookTicket} />
       <Stack.Screen name="PaymentScreen" component={PaymentScreen} />
+
     </>
   );
 }

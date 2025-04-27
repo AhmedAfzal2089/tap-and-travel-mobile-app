@@ -1,15 +1,14 @@
 import React, { useContext, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
-import ButtonWithLoader from "../../Components/ButtonWithLoader";
-import TextInputWithLable from "../../Components/TextInputWithLabel";
+import { View, StyleSheet, Text, TouchableOpacity } from "react-native";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import validator from "../../utils/validation";
 import { showError } from "../../utils/helperFunction";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LOGIN } from "../../config/urls";
-import { useDispatch } from "react-redux";
-import { initializeStore } from "../../store/intializeStore";
 import { AuthContext } from "../../context/AuthContext";
 import Toast from "react-native-toast-message";
+import AppButton from "../../Components/Button";
+import AppInput from "../../Components/AppInput";
 
 export const loginUser = async (userData) => {
   try {
@@ -77,24 +76,47 @@ const Login = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <TextInputWithLable
-        label="Email"
-        placheHolder="Enter your Email"
-        onChangeText={(email) => updateState({ email })}
-      />
-      <TextInputWithLable
-        label="Password"
-        placheHolder="Enter your password"
-        secureTextEntry={isSecure}
-        onChangeText={(password) => updateState({ password })}
-      />
+      <View style={styles.topSection}>
+        {/* Location Icon */}
+        <MaterialIcons
+          name="location-on"
+          size={60}
+          color="white"
+          style={{ marginBottom: 10 }}
+        />
+        {/* Title */}
+        <Text style={styles.appName}>Tap And Travel</Text>
+      </View>
 
-      <ButtonWithLoader text="Login" onPress={onLogin} isLoading={isLoading} />
-      <View style={{ marginVertical: 8 }} />
-      <ButtonWithLoader
-        text="Signup"
-        onPress={() => navigation.navigate("Signup")}
-      />
+      <View style={styles.bottomSection}>
+        <Text style={styles.welcomeText}>Welcome</Text>
+        <View style={styles.registerRow}>
+          <Text style={styles.registerText}>Don't have an account? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
+            <Text style={styles.registerNow}>Register now</Text>
+          </TouchableOpacity>
+        </View>
+
+        <AppInput
+          placeholder="Enter your email"
+          value={email}
+          onChangeText={(email) => updateState({ email })}
+        />
+        <AppInput
+          placeholder="Enter your password"
+          value={password}
+          secureTextEntry={isSecure}
+          onChangeText={(password) => updateState({ password })}
+        />
+
+        <View style={{ marginVertical: 12 }} />
+        <AppButton
+          text="Login"
+          onPress={onLogin}
+          variant="primary"
+          isLoading={isLoading}
+        />
+      </View>
     </View>
   );
 };
@@ -102,8 +124,42 @@ const Login = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+    backgroundColor: "#292966", // Updated dark background
+  },
+  topSection: {
+    flex: 1.2,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  appName: {
+    color: "white",
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  bottomSection: {
+    flex: 2,
     backgroundColor: "white",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingHorizontal: 24,
+    paddingTop: 30,
+  },
+  welcomeText: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#292966",
+    marginBottom: 8,
+  },
+  registerRow: {
+    flexDirection: "row",
+    marginBottom: 20,
+  },
+  registerText: {
+    color: "#999",
+  },
+  registerNow: {
+    color: "red",
+    fontWeight: "bold",
   },
 });
 

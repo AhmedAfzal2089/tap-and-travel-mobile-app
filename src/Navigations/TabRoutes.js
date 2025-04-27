@@ -4,7 +4,8 @@ import {
   createBottomTabNavigator,
 } from "@react-navigation/bottom-tabs";
 import { MaterialIcons } from "react-native-vector-icons";
-import { Home, Profile, Ticket, Map } from "../";
+import { Home, Profile, Ticket } from "../";
+import MapStack from "./MapStack";
 
 const BottomTab = createBottomTabNavigator();
 
@@ -18,10 +19,10 @@ const TabRoutes = () => {
       )}
       initialRouteName="Home"
       screenOptions={{
-        tabBarActiveTintColor: "tomato", // Active tab color
-        tabBarInactiveTintColor: "gray", // Inactive tab color
-        tabBarStyle: { backgroundColor: "white" }, // Tab bar background color
-        headerShown: false
+        tabBarActiveTintColor: "#FFFFFF",
+        tabBarInactiveTintColor: "#D3D3D3",
+        tabBarStyle: { backgroundColor: "#292966" }, // Tab bar background color
+        headerShown: false,
       }}
     >
       <BottomTab.Screen
@@ -38,16 +39,20 @@ const TabRoutes = () => {
         component={Ticket}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="confirmation-number" size={size} color={color} /> // Ticket icon
+            <MaterialIcons
+              name="confirmation-number"
+              size={size}
+              color={color}
+            /> // Ticket icon
           ),
         }}
       />
       <BottomTab.Screen
         name="Map"
-        component={Map}
+        component={MapStack}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="map" size={size} color={color} /> // Map icon
+            <MaterialIcons name="location-on" size={size} color={color} /> // Map icon
           ),
         }}
       />

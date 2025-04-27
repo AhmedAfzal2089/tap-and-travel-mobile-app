@@ -4,12 +4,11 @@ import store from '../redux/store';
 import types from '../redux/types';
 
 const { dispatch, getState } = store;
- 
+
 export async function getHeaders() {
 	let userData = await AsyncStorage.getItem('userData');
 	if (userData) {
 		userData = JSON.parse(userData);
-		//console.log(userData.accessToken, 'header')
 		return {
 			authorization: `${userData.access_token}`,
 		};
@@ -52,12 +51,8 @@ export async function apiReq(
 				return res(data);
 			})
 			.catch(error => {
-				console.log(error)
-				console.log(error && error.response, 'the error respne')
 				if (error && error.response && error.response.status === 401) {
 					clearUserData();
-					// NavigationService.resetNavigation();
-					//NavigationService.navigate('loginUsingEmailScreen');
 					dispatch({
 						type: types.CLEAR_REDUX_STATE,
 						payload: {}
