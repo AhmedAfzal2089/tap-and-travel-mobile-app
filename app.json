@@ -13,12 +13,20 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyA6V89_30qIOKJEV948T6-a_aPLaBRfiLs"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyA6V89_30qIOKJEV948T6-a_aPLaBRfiLs"
+        }
       }
     },
     "web": {
@@ -28,7 +36,6 @@
       "eas": {
         "projectId": "6c6dd4e7-8ae7-49b5-80a5-4e35becd2e03",
         "STRIPE_PUBLISHABLE_KEY": "pk_test_51QMkUFKzfMgYIpCx3iDEwl4GbcNYQyEwhJKqGsc8BAuQ8h7pHFJqjhGR6LfImDlOojLfiV0DngTdZv1OBiv3w8c500a980IyyP"
-
       }
     },
     "runtimeVersion": {
