@@ -52,7 +52,7 @@ const BusesList = ({ handleBookTicket }) => {
                 {format12time(bus.arrivalTime)}
               </Text>
               <Text style={styles.stops}>
-                Stops: {bus.route.stops?.length || 0}
+                Stops: {bus.route.stops?.length - 2 || 0}
               </Text>
 
               {/* Book Button */}

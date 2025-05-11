@@ -49,7 +49,12 @@ const BusCard = ({ bus }) => {
       {/* Info Chips */}
       <View style={styles.infoRow}>
         <View style={styles.infoChip}>
-          <Text style={styles.infoText}>🛑 Stops: {bus?.route?.stops?.length}</Text>
+          <Text style={styles.infoText}>
+            🛑 Stops:{" "}
+            {bus?.route?.stops?.length - 2 > 0
+              ? bus?.route?.stops?.length - 2
+              : "0"}
+          </Text>
         </View>
         <View style={styles.infoChip}>
           <Text style={styles.infoText}>👥 Seats: {bus?.availableSeats}</Text>
