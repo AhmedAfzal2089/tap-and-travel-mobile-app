@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  Alert,
 } from "react-native";
 import axios from "axios";
 import { useNavigation } from "@react-navigation/native";
@@ -22,6 +23,11 @@ const BookingForm = () => {
   const [buses, setBuses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [cities, setCities] = useState([]);
+  const [formErrors, setFormErrors] = useState({
+    fromCity: "",
+    toCity: "",
+    date: "",
+  });
   const [formData, setFormData] = useState({
     fromCity: "",
     toCity: "",
@@ -59,13 +65,104 @@ const BookingForm = () => {
   };
 
   const handleInputChange = (name, value) => {
+    // Clear the specific error when the user updates that field
+    setFormErrors({
+      ...formErrors,
+      [name]: "",
+    });
+
+    // If changing fromCity or toCity, check if they're the same
+    if (name === "fromCity" && value === formData.toCity && value !== "") {
+      setFormErrors({
+        ...formErrors,
+        fromCity: "Departure and arrival cities cannot be the same",
+      });
+    } else if (name === "toCity" && value === formData.fromCity && value !== "") {
+      setFormErrors({
+        ...formErrors,
+        toCity: "Departure and arrival cities cannot be the same",
+      });
+    }
+
     setFormData({ ...formData, [name]: value });
   };
 
   const onDateChange = (selectedDate) => {
     if (!selectedDate) return;
+    
     const formattedDate = new Date(selectedDate).toISOString().split("T")[0];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const selectedDateObj = new Date(selectedDate);
+    selectedDateObj.setHours(0, 0, 0, 0);
+    
+    // Clear the date error
+    setFormErrors({
+      ...formErrors,
+      date: "",
+    });
+    
+    // Check if selected date is in the past
+    if (selectedDateObj < today) {
+      setFormErrors({
+        ...formErrors,
+        date: "Cannot select a date in the past",
+      });
+    }
+    
     setFormData({ ...formData, date: formattedDate });
+  };
+
+  const validateForm = () => {
+    const { fromCity, toCity, date } = formData;
+    const newErrors = {
+      fromCity: "",
+      toCity: "",
+      date: "",
+    };
+    
+    let isValid = true;
+    
+    // Check for empty fields
+    if (!fromCity.trim()) {
+      newErrors.fromCity = "Please select a departure city";
+      isValid = false;
+    }
+    
+    if (!toCity.trim()) {
+      newErrors.toCity = "Please select an arrival city";
+      isValid = false;
+    }
+    
+    if (!date) {
+      newErrors.date = "Please select a date";
+      isValid = false;
+    }
+    
+    // Check if fromCity and toCity are the same
+    if (fromCity.trim() && toCity.trim() && fromCity.trim() === toCity.trim()) {
+      newErrors.fromCity = "Departure and arrival cities cannot be the same";
+      newErrors.toCity = "Departure and arrival cities cannot be the same";
+      isValid = false;
+    }
+    
+    // Check if date is in the past
+    if (date) {
+      const selectedDate = new Date(date);
+      selectedDate.setHours(0, 0, 0, 0);
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (selectedDate < today) {
+        newErrors.date = "Cannot select a date in the past";
+        isValid = false;
+      }
+    }
+    
+    setFormErrors(newErrors);
+    return isValid;
   };
 
   const filterBuses = () => {
@@ -95,9 +192,26 @@ const BookingForm = () => {
   };
 
   const handleSubmit = () => {
+    if (!validateForm()) {
+      // Display alert with all errors
+      const errorMessages = Object.values(formErrors).filter(error => error);
+      if (errorMessages.length > 0) {
+        Alert.alert(
+          "Form Validation Error",
+          errorMessages.join("\n"),
+          [{ text: "OK" }]
+        );
+      }
+      return;
+    }
+    
     setLoading(true);
     setHasSearched(true);
     filterBuses();
+  };
+
+  const handleShowAllBuses = () => {
+    setHasSearched(false);
   };
 
   const handleBookTicket = (busId) => {
@@ -105,6 +219,10 @@ const BookingForm = () => {
   };
 
   const busesToShow = hasSearched ? filteredBuses : buses;
+
+  const getErrorStyle = (fieldName) => {
+    return formErrors[fieldName] ? styles.inputError : {};
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -114,40 +232,62 @@ const BookingForm = () => {
 
       <Animatable.View animation="fadeInUp" duration={700} delay={100}>
         <View style={styles.card}>
-          <AppSelect
-            selectedValue={formData.fromCity}
-            items={cities.map((city) => ({ label: city, value: city }))}
-            onValueChange={(itemValue) =>
-              handleInputChange("fromCity", itemValue)
-            }
-            value={formData.fromCity}
-            placeholder="📍 From City"
-            style={styles.select}
-          />
-          <AppSelect
-            selectedValue={formData.toCity}
-            items={cities.map((city) => ({ label: city, value: city }))}
-            onValueChange={(itemValue) =>
-              handleInputChange("toCity", itemValue)
-            }
-            value={formData.toCity}
-            placeholder="📍 To City"
-            style={styles.select}
-          />
-          <AppDatePicker
-            value={formData.date}
-            onChange={onDateChange}
-            placeholder="🗓️ Select Date"
-            variant="primary"
-            borderRadius={12}
-          />
+          <View>
+            <AppSelect
+              selectedValue={formData.fromCity}
+              items={cities.map((city) => ({ label: city, value: city }))}
+              onValueChange={(itemValue) =>
+                handleInputChange("fromCity", itemValue)
+              }
+              value={formData.fromCity}
+              placeholder="📍 From City"
+              style={[styles.select, getErrorStyle("fromCity")]}
+            />
+            {formErrors.fromCity ? (
+              <Text style={styles.errorText}>{formErrors.fromCity}</Text>
+            ) : null}
+          </View>
+          
+          <View>
+            <AppSelect
+              selectedValue={formData.toCity}
+              items={cities.map((city) => ({ label: city, value: city }))}
+              onValueChange={(itemValue) =>
+                handleInputChange("toCity", itemValue)
+              }
+              value={formData.toCity}
+              placeholder="📍 To City"
+              style={[styles.select, getErrorStyle("toCity")]}
+            />
+            {formErrors.toCity ? (
+              <Text style={styles.errorText}>{formErrors.toCity}</Text>
+            ) : null}
+          </View>
+          
+          <View>
+            <AppDatePicker
+              value={formData.date}
+              onChange={onDateChange}
+              placeholder="🗓️ Select Date"
+              variant="primary"
+              borderRadius={12}
+              style={getErrorStyle("date")}
+              minimumDate={new Date()} // Prevent selecting past dates in the date picker
+            />
+            {formErrors.date ? (
+              <Text style={styles.errorText}>{formErrors.date}</Text>
+            ) : null}
+          </View>
+          
           <AppButton text="🔍 Search" onPress={handleSubmit} variant="secondary" />
         </View>
 
         <View style={styles.results}>
-          <Text style={styles.resultsTitle}>
-            {hasSearched ? "🔍 Search Results" : "🧾 All Available Buses"}
-          </Text>
+          <View style={styles.resultsHeader}>
+            <Text style={styles.resultsTitle}>
+              {hasSearched ? "🔍 Search Results" : "🧾 All Available Buses"}
+            </Text>
+          </View>
 
           {loading ? (
             <ActivityIndicator size="large" color="#0000ff" />
@@ -162,7 +302,17 @@ const BookingForm = () => {
               </Animatable.View>
             ))
           ) : (
-            <Text style={styles.noBusText}>No buses found</Text>
+            <View style={styles.noResultsContainer}>
+              <Text style={styles.noBusText}>No buses found</Text>
+              {hasSearched && (
+                <AppButton 
+                  text="View All Available Buses" 
+                  onPress={handleShowAllBuses} 
+                  variant="primary"
+                  style={styles.viewAllButton}
+                />
+              )}
+            </View>
           )}
         </View>
       </Animatable.View>
@@ -203,7 +353,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    marginBottom: 16,
+    marginBottom: 6,
     borderWidth: 1,
     borderColor: "#D0D3D4",
     color: "#2C3E50",
@@ -213,20 +363,41 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  inputError: {
+    borderColor: "#E74C3C",
+    borderWidth: 1,
+  },
+  errorText: {
+    color: "#E74C3C",
+    fontSize: 12,
+    marginBottom: 10,
+    marginLeft: 4,
+  },
   results: {
     marginTop: 24,
+  },
+  resultsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
   },
   resultsTitle: {
     fontSize: 22,
     fontWeight: "600",
-    marginBottom: 12,
     color: "#2C3E50",
-    textAlign: "center",
   },
   noBusText: {
     fontSize: 16,
     textAlign: "center",
     marginTop: 20,
     color: "#7F8C8D",
+  },
+  noResultsContainer: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  viewAllButton: {
+    marginTop: 16,
   },
 });

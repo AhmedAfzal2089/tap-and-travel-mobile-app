@@ -1,14 +1,9 @@
 import React, { useEffect, useState } from "react";
-import {
-  Image,
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Alert,
-} from "react-native";
+import { Image, View, Text, StyleSheet, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import axios from "axios";
 import AppButton from "../../Components/Button";
+import { apiBaseUrl } from "../../config/urls";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { jwtDecode } from "jwt-decode";
 import apiClient from "../../api/apiClient";
@@ -16,7 +11,6 @@ import * as Location from "expo-location";
 import { formatDate } from "../../utils/helperFunction";
 import { busStatuses } from "../../utils/bus-statuses";
 import Loader from "../../Components/Loader";
-import * as Animatable from "react-native-animatable";
 
 const ActiveTicketsScreen = () => {
   const navigation = useNavigation();
@@ -36,6 +30,7 @@ const ActiveTicketsScreen = () => {
       const { data } = await apiClient(
         `/ticket/user/information/${userId}?checkUptoEndDate=true`
       );
+
       setActiveTickets(data?.active);
     } catch (error) {
       console.error("Failed to fetch tickets:", error);
@@ -49,8 +44,14 @@ const ActiveTicketsScreen = () => {
     const ticketDate = new Date(ticket?.date);
     const isToday = ticketDate.toDateString() === today.toDateString();
 
-    const shouldShowNavigationButton =
-      isToday && ticket?.busStatus === busStatuses.IN_TRANSIT;
+    let shouldShowNavigationButton = false;
+    if (
+      isToday &&
+      ticket?.ticketStatus === "scanned" &&
+      ticket?.busStatus === busStatuses.IN_TRANSIT
+    ) {
+      shouldShowNavigationButton = true;
+    }
 
     return { ...ticket, shouldShowNavigationButton };
   });
@@ -59,7 +60,7 @@ const ActiveTicketsScreen = () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission required", "Location access is needed.");
+        alert("Location permission is required.");
         return;
       }
 
@@ -83,9 +84,9 @@ const ActiveTicketsScreen = () => {
 
       navigation.navigate("TrackLocation", { busId: ticket?.busId });
     } catch (error) {
-      console.error("Error:", error);
-      Alert.alert("Error", "Failed to initiate navigation.");
+      console.error("Error scheduling notifications:", error);
       navigation.navigate("TrackLocation", { busId: ticket?.busId });
+      alert("Failed to schedule notifications. Please try again.");
     }
   };
 
@@ -97,41 +98,38 @@ const ActiveTicketsScreen = () => {
         <Loader />
       ) : processedTickets.length > 0 ? (
         processedTickets.map((ticket, index) => (
-          <Animatable.View
-            key={index}
-            animation="fadeInUp"
-            duration={500}
-            delay={index * 150}
-            style={styles.card}
-          >
+          <View key={index} style={styles.card}>
             {ticket.route ? (
               <Text style={styles.route}>
                 {ticket?.route?.startCity} → {ticket?.route?.endCity}
               </Text>
             ) : (
-              <Text style={styles.route}>Route information unavailable</Text>
+              <Text style={styles.route}>Route information is unavailable</Text>
             )}
-
             <Text style={styles.date}>Date: {formatDate(ticket?.date)}</Text>
             <Text style={styles.bus}>Bus: {ticket?.busDetails?.busNumber}</Text>
-
             <View style={styles.imageContainer}>
               <Image
                 source={{
                   uri: "https://t4.ftcdn.net/jpg/02/69/47/51/360_F_269475198_k41qahrZ1j4RK1sarncMiFHpcmE2qllQ.jpg",
                 }}
                 style={styles.busImage}
+                resizeMode="cover"
               />
             </View>
-
             {ticket.shouldShowNavigationButton && (
               <AppButton
-                text="🧭 Start Navigation"
+                text="Start Navigation"
                 onPress={() => handleChoose(ticket)}
                 variant="primary"
               />
             )}
-          </Animatable.View>
+            {/* <AppButton
+              text="Start Navigation"
+              onPress={() => handleChoose(ticket)}
+              variant="primary"
+            /> */}
+          </View>
         ))
       ) : (
         <Text style={styles.emptyText}>No active tickets available.</Text>
@@ -140,63 +138,62 @@ const ActiveTicketsScreen = () => {
   );
 };
 
-export default ActiveTicketsScreen;
-
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#FFFFFF",
   },
+  imageContainer: {
+    flex: 3,
+    marginRight: 12,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "#ddd",
+    marginBottom: 12,
+  },
+
+  busImage: {
+    width: "100%",
+    height: "100%",
+    aspectRatio: 1.5,
+    borderRadius: 8,
+  },
+
   header: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "bold",
-    color: "#2C3E50",
-    textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 16,
     marginTop: 32,
+    textAlign: "center",
   },
   card: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "#F8F8F8",
     padding: 16,
-    borderRadius: 16,
-    marginBottom: 20,
-    elevation: 4,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    borderRadius: 12,
+    marginBottom: 16,
+    elevation: 2,
   },
   route: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
-    color: "#34495E",
     marginBottom: 6,
   },
   date: {
     fontSize: 14,
-    color: "#7F8C8D",
     marginBottom: 4,
+    color: "#7F8C8D",
   },
   bus: {
     fontSize: 14,
+    marginBottom: 10,
     color: "#7F8C8D",
-    marginBottom: 12,
-  },
-  imageContainer: {
-    borderRadius: 12,
-    overflow: "hidden",
-    marginBottom: 12,
-    backgroundColor: "#ddd",
-  },
-  busImage: {
-    width: "100%",
-    height: undefined,
-    aspectRatio: 2,
   },
   emptyText: {
     textAlign: "center",
-    marginTop: 40,
+    marginTop: 30,
     fontSize: 16,
     color: "#7F8C8D",
   },
 });
+
+export default ActiveTicketsScreen;
