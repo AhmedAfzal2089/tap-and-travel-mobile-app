@@ -42,7 +42,7 @@ const BusCard = ({ bus }) => {
           <Text style={styles.label}>Arrival</Text>
           <Text style={styles.time}>{format12time(bus?.arrivalTime)}</Text>
           <Text style={styles.city}>{bus?.route?.endCity}</Text>
-          <Text style={styles.date}>{formatDate(bus?.date)}</Text>
+          <Text style={styles.date}>{formatDate(bus?.endDate)}</Text>
         </View>
       </View>
 

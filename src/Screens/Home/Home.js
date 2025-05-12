@@ -70,24 +70,28 @@ const BookingForm = () => {
 
   const filterBuses = () => {
     const { fromCity, toCity, date } = formData;
-    const selectedDate = date
-      ? new Date(date).toISOString().split("T")[0]
-      : null;
-    if (!selectedDate) return;
+    if (!date) return;
+
+    // Get local selected date in 'YYYY-MM-DD' format
+    const selectedDate = new Date(date).toISOString().split("T")[0];
 
     const results = buses.filter((bus) => {
-      const busStartCity = bus.route.startCity.trim().toLowerCase();
-      const busEndCity = bus.route.endCity.trim().toLowerCase();
-      const selectedFromCity = fromCity.trim().toLowerCase();
-      const selectedToCity = toCity.trim().toLowerCase();
-      const busDate = bus.date
-        ? new Date(bus.date).toISOString().split("T")[0]
-        : null;
-      return (
-        busStartCity === selectedFromCity &&
-        busEndCity === selectedToCity &&
-        busDate === selectedDate
-      );
+      // Adjust bus date from UTC to Pakistan time manually
+      const busDateUTC = new Date(bus.date);
+
+      // Pakistan Standard Time is UTC+5
+      const busDateInPK = new Date(busDateUTC.getTime() + 5 * 60 * 60 * 1000);
+
+      const busDateFormatted = busDateInPK.toISOString().split("T")[0];
+
+      const citiesMatch =
+        bus.route.startCity.trim().toLowerCase() ===
+          fromCity.trim().toLowerCase() &&
+        bus.route.endCity.trim().toLowerCase() === toCity.trim().toLowerCase();
+
+      const dateMatch = busDateFormatted === selectedDate;
+
+      return citiesMatch && dateMatch;
     });
 
     setFilteredBuses(results);
@@ -141,7 +145,11 @@ const BookingForm = () => {
             variant="primary"
             borderRadius={12}
           />
-          <AppButton text="🔍 Search" onPress={handleSubmit} variant="secondary" />
+          <AppButton
+            text="🔍 Search"
+            onPress={handleSubmit}
+            variant="secondary"
+          />
         </View>
 
         <View style={styles.results}>
@@ -158,7 +166,11 @@ const BookingForm = () => {
                 animation="fadeInUp"
                 delay={index * 100}
               >
-                <BusCard bus={bus} index={index + 1} onBook={handleBookTicket} />
+                <BusCard
+                  bus={bus}
+                  index={index + 1}
+                  onBook={handleBookTicket}
+                />
               </Animatable.View>
             ))
           ) : (
