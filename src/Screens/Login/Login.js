@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -13,7 +13,6 @@ import * as Animatable from "react-native-animatable";
 import { LinearGradient } from "expo-linear-gradient";
 
 import validator from "../../utils/validation";
-import { showError } from "../../utils/helperFunction";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LOGIN } from "../../config/urls";
 import { AuthContext } from "../../context/AuthContext";
@@ -37,7 +36,11 @@ export const loginUser = async (userData) => {
       await registerExpoPushToken(data?.userId);
       return { success: true, data };
     } else {
-      return { success: false, message: data.message || "Login failed" };
+      return { 
+        success: false, 
+        message: data.message || "Login failed",
+        status: response.status
+      };
     }
   } catch (err) {
     return { success: false, message: err.message || "Unexpected error" };
@@ -52,34 +55,119 @@ const Login = ({ navigation }) => {
     password: "",
     isSecure: true,
   });
+  
+  const [errors, setErrors] = useState({
+    email: "",
+    password: "",
+  });
 
   const { isLoading, email, password, isSecure } = state;
 
   const updateState = (data) => setState((prev) => ({ ...prev, ...data }));
 
-  const isValidData = () => {
-    const error = validator({ email, password });
-    if (error) {
-      showError(error);
-      return false;
+  const validateEmail = (email) => {
+    if (!email.trim()) {
+      return "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return "Please enter a valid email address";
     }
-    return true;
+    return "";
+  };
+
+  const validatePassword = (password) => {
+    if (!password) {
+      return "Password is required";
+    } else if (password.length < 6) {
+      return "Password must be at least 6 characters";
+    }
+    return "";
+  };
+
+  const handleInputChange = (field, value) => {
+    updateState({ [field]: value });
+    
+    // Clear the specific error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const validateField = (field, value) => {
+    let errorMessage = "";
+    
+    switch (field) {
+      case "email":
+        errorMessage = validateEmail(value);
+        break;
+      case "password":
+        errorMessage = validatePassword(value);
+        break;
+      default:
+        break;
+    }
+    
+    setErrors(prev => ({ ...prev, [field]: errorMessage }));
+    return !errorMessage;
+  };
+
+  const validateAllFields = () => {
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+    
+    setErrors({
+      email: emailError,
+      password: passwordError,
+    });
+    
+    return !emailError && !passwordError;
+  };
+
+  const togglePasswordVisibility = () => {
+    updateState({ isSecure: !isSecure });
   };
 
   const onLogin = async () => {
-    if (!isValidData()) return;
+    if (!validateAllFields()) {
+      Toast.show({
+        type: "error",
+        text1: "Validation Error",
+        text2: "Please fix the errors in the form"
+      });
+      return;
+    }
 
     updateState({ isLoading: true });
 
     const response = await loginUser({ email, password });
 
     if (response.success) {
+      Toast.show({
+        type: "success",
+        text1: "Login Successful",
+        text2: "Welcome back!"
+      });
       await login(response?.data?.token);
     } else {
-      Toast.show({
-        type: "error",
-        text1: "Invalid email or password!",
-      });
+      // Handle specific error cases
+      if (response.status === 401) {
+        Toast.show({
+          type: "error",
+          text1: "Authentication Failed",
+          text2: "Invalid email or password"
+        });
+      } else if (response.status === 404) {
+        Toast.show({
+          type: "error",
+          text1: "Account Not Found",
+          text2: "No account exists with this email"
+        });
+      } else {
+        Toast.show({
+          type: "error",
+          text1: "Login Failed",
+          text2: response.message || "Please try again later"
+        });
+      }
     }
 
     updateState({ isLoading: false });
@@ -123,13 +211,21 @@ const Login = ({ navigation }) => {
           <AppInput
             placeholder="Enter your email"
             value={email}
-            onChangeText={(email) => updateState({ email })}
+            onChangeText={(value) => handleInputChange("email", value)}
+            onBlur={() => validateField("email", email)}
+            error={errors.email}
+            keyboardType="email-address"
+            autoCapitalize="none"
           />
           <AppInput
             placeholder="Enter your password"
             value={password}
             secureTextEntry={isSecure}
-            onChangeText={(password) => updateState({ password })}
+            onChangeText={(value) => handleInputChange("password", value)}
+            onBlur={() => validateField("password", password)}
+            error={errors.password}
+            rightIcon={isSecure ? "eye-off" : "eye"}
+            onRightIconPress={togglePasswordVisibility}
           />
 
           <TouchableOpacity onPress={() => navigation.navigate("ForgotEmail")}>

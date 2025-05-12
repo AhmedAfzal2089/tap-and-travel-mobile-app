@@ -3,7 +3,6 @@ import {
   View,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
@@ -12,7 +11,9 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import * as Animatable from "react-native-animatable";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import Feather from "react-native-vector-icons/Feather";
 import AppButton from "../../Components/Button";
+import AppInput from "../../Components/AppInput";
 import Toast from "react-native-toast-message";
 import apiClient from "../../api/apiClient";
 
@@ -22,49 +23,166 @@ const passwordRules = [
   { label: "At least one number", test: (val) => /\d/.test(val) },
   {
     label: "At least one special character",
-    test: (val) => /[!@#$%^&*(),.?\":{}|<>]/.test(val),
+    test: (val) => /[!@#$%^&*(),.?":{}|<>]/.test(val),
   },
 ];
 
 const ResetPassword = ({ navigation, route }) => {
   const { email, secret_key } = route?.params || {};
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [state, setState] = useState({
+    password: "",
+    confirmPassword: "",
+    isLoading: false,
+    isPasswordVisible: false,
+    isConfirmPasswordVisible: false,
+  });
+
+  const [errors, setErrors] = useState({
+    password: "",
+    confirmPassword: "",
+    general: "",
+  });
+
+  const [validationResults, setValidationResults] = useState({
+    rulesStatus: passwordRules.map(rule => ({ ...rule, valid: false })),
+    passwordsMatch: false,
+  });
 
   useEffect(() => {
     if (!email || !secret_key) {
+      Toast.show({
+        type: "error",
+        text1: "Invalid Request",
+        text2: "Missing required information to reset password"
+      });
       navigation.replace("ForgotEmail");
     }
   }, [email, secret_key]);
 
-  const isPasswordValid = passwordRules.every((rule) => rule.test(password));
-  const passwordsMatch = password === confirmPassword;
-  const canSubmit = isPasswordValid && passwordsMatch;
+  const updateState = (data) => setState(prev => ({ ...prev, ...data }));
+
+  // Validate password against rules and update validation state
+  useEffect(() => {
+    const rulesStatus = passwordRules.map(rule => ({
+      ...rule,
+      valid: rule.test(state.password),
+    }));
+
+    const passwordsMatch = state.confirmPassword.length > 0 && 
+      state.password === state.confirmPassword;
+
+    setValidationResults({
+      rulesStatus,
+      passwordsMatch,
+    });
+
+    // Update error messages
+    let passwordError = "";
+    if (state.password && !rulesStatus.every(rule => rule.valid)) {
+      passwordError = "Password does not meet all requirements";
+    }
+
+    let confirmError = "";
+    if (state.confirmPassword && !passwordsMatch) {
+      confirmError = "Passwords do not match";
+    }
+
+    setErrors(prev => ({ 
+      ...prev, 
+      password: passwordError,
+      confirmPassword: confirmError 
+    }));
+  }, [state.password, state.confirmPassword]);
+
+  const togglePasswordVisibility = (field) => {
+    if (field === 'password') {
+      updateState({ isPasswordVisible: !state.isPasswordVisible });
+    } else {
+      updateState({ isConfirmPasswordVisible: !state.isConfirmPasswordVisible });
+    }
+  };
+
+  const validateForm = () => {
+    // Check if all rules are valid
+    const isPasswordValid = validationResults.rulesStatus.every(rule => rule.valid);
+    const passwordsMatch = state.password === state.confirmPassword;
+
+    let formErrors = {
+      password: "",
+      confirmPassword: "",
+      general: "",
+    };
+
+    if (!state.password) {
+      formErrors.password = "Password is required";
+    } else if (!isPasswordValid) {
+      formErrors.password = "Password does not meet all requirements";
+    }
+
+    if (!state.confirmPassword) {
+      formErrors.confirmPassword = "Please confirm your password";
+    } else if (!passwordsMatch) {
+      formErrors.confirmPassword = "Passwords do not match";
+    }
+
+    setErrors(formErrors);
+
+    return isPasswordValid && passwordsMatch && state.password.length > 0 && 
+      state.confirmPassword.length > 0;
+  };
 
   const handleResetPassword = async () => {
-    if (!canSubmit) return;
-    setIsLoading(true);
+    if (!validateForm()) {
+      Toast.show({
+        type: "error",
+        text1: "Validation Error",
+        text2: "Please fix the errors before submitting"
+      });
+      return;
+    }
+
+    updateState({ isLoading: true });
+    
     try {
       const response = await apiClient.post("/user/forgot-password/reset", {
         email,
         secret_key,
-        newPassword: password,
+        newPassword: state.password,
       });
 
       Toast.show({
         type: "success",
-        text1: response?.message || "Password reset successfully!",
+        text1: "Success!",
+        text2: response?.data?.message || "Password reset successfully!"
       });
       navigation.replace("Login");
     } catch (error) {
+      const errorMessage = error?.response?.data?.message || 
+        "Failed to reset password. Please try again.";
+      
+      // Check for specific error types
+      if (error?.response?.status === 400) {
+        setErrors(prev => ({ ...prev, general: "Invalid request parameters" }));
+      } else if (error?.response?.status === 401) {
+        setErrors(prev => ({ ...prev, general: "Reset link has expired" }));
+      } else {
+        setErrors(prev => ({ ...prev, general: errorMessage }));
+      }
+      
       Toast.show({
         type: "error",
-        text1: error?.response?.data?.message || "Failed to reset password.",
+        text1: "Password Reset Failed",
+        text2: errorMessage
       });
+    } finally {
+      updateState({ isLoading: false });
     }
-    setIsLoading(false);
   };
+
+  const isFormValid = validationResults.rulesStatus.every(rule => rule.valid) && 
+    validationResults.passwordsMatch && 
+    state.password.length > 0 && 
+    state.confirmPassword.length > 0;
 
   return (
     <KeyboardAvoidingView
@@ -89,46 +207,70 @@ const ResetPassword = ({ navigation, route }) => {
           style={styles.bottomSection}
         >
           <Text style={styles.title}>Reset Your Password</Text>
+          
+          {errors.general ? (
+            <View style={styles.generalErrorContainer}>
+              <Text style={styles.generalErrorText}>{errors.general}</Text>
+            </View>
+          ) : null}
 
-          <Text style={styles.label}>Password</Text>
-          <TextInput
+          <AppInput
             placeholder="New Password"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            style={styles.input}
+            secureTextEntry={!state.isPasswordVisible}
+            value={state.password}
+            onChangeText={(password) => updateState({ password })}
+            rightIcon={state.isPasswordVisible ? "eye" : "eye-off"}
+            onRightIconPress={() => togglePasswordVisibility('password')}
+            error={errors.password}
           />
 
-          <Text style={styles.label}>Confirm Password</Text>
-          <TextInput
+          <AppInput
             placeholder="Confirm Password"
-            secureTextEntry
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            style={styles.input}
+            secureTextEntry={!state.isConfirmPasswordVisible}
+            value={state.confirmPassword}
+            onChangeText={(confirmPassword) => updateState({ confirmPassword })}
+            rightIcon={state.isConfirmPasswordVisible ? "eye" : "eye-off"}
+            onRightIconPress={() => togglePasswordVisibility('confirmPassword')}
+            error={errors.confirmPassword}
           />
 
           <View style={styles.rulesContainer}>
-            {passwordRules.map((rule, index) => {
-              const passed = rule.test(password);
-              return (
+            <Text style={styles.rulesTitle}>Password must have:</Text>
+            {validationResults.rulesStatus.map((rule, index) => (
+              <View key={index} style={styles.ruleRow}>
+                <Feather 
+                  name={rule.valid ? "check-circle" : "circle"} 
+                  size={16} 
+                  color={rule.valid ? "green" : "#888"} 
+                  style={styles.ruleIcon}
+                />
                 <Text
-                  key={index}
-                  style={[styles.ruleText, { color: passed ? "green" : "red" }]}
+                  style={[
+                    styles.ruleText, 
+                    { color: rule.valid ? "green" : "#888" }
+                  ]}
                 >
-                  • {rule.label}
+                  {rule.label}
                 </Text>
-              );
-            })}
-            {confirmPassword.length > 0 && (
-              <Text
-                style={{
-                  color: passwordsMatch ? "green" : "red",
-                  marginTop: 5,
-                }}
-              >
-                • Passwords {passwordsMatch ? "match" : "do not match"}
-              </Text>
+              </View>
+            ))}
+            {state.confirmPassword.length > 0 && (
+              <View style={styles.ruleRow}>
+                <Feather 
+                  name={validationResults.passwordsMatch ? "check-circle" : "circle"} 
+                  size={16} 
+                  color={validationResults.passwordsMatch ? "green" : "#888"} 
+                  style={styles.ruleIcon}
+                />
+                <Text
+                  style={[
+                    styles.ruleText,
+                    { color: validationResults.passwordsMatch ? "green" : "#888" }
+                  ]}
+                >
+                  Passwords match
+                </Text>
+              </View>
             )}
           </View>
 
@@ -136,8 +278,8 @@ const ResetPassword = ({ navigation, route }) => {
             text="Reset Password"
             onPress={handleResetPassword}
             variant="primary"
-            isLoading={isLoading}
-            disabled={!canSubmit}
+            isLoading={state.isLoading}
+            disabled={!isFormValid}
           />
 
           <View style={styles.loginLinkContainer}>
@@ -194,27 +336,28 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: "center",
   },
-  label: {
-    fontSize: 15,
-    color: "#34495E",
-    marginBottom: 6,
-    marginTop: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
-    backgroundColor: "#f7f7f7",
-    fontSize: 16,
-  },
   rulesContainer: {
     marginBottom: 20,
+    padding: 12,
+    backgroundColor: "#f8f8f8",
+    borderRadius: 8,
+  },
+  rulesTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#444",
+    marginBottom: 8,
+  },
+  ruleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  ruleIcon: {
+    marginRight: 8,
   },
   ruleText: {
     fontSize: 14,
-    marginBottom: 4,
   },
   loginLinkContainer: {
     flexDirection: "row",
@@ -228,6 +371,18 @@ const styles = StyleSheet.create({
   loginLink: {
     color: "#ff4d4d",
     fontWeight: "bold",
+    fontSize: 14,
+  },
+  generalErrorContainer: {
+    backgroundColor: "#ffeeee",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#ffcccc",
+  },
+  generalErrorText: {
+    color: "#d32f2f",
     fontSize: 14,
   },
 });
